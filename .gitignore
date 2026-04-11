@@ -1,0 +1,11 @@
+/.idea/codeStyles/codeStyleConfig.xml
+/.idea/libraries/addon.xml
+/.idea/libraries/test_package.xml
+/.idea/libraries/ts_commonjs_default_export.xml
+/.idea/.gitignore
+/.idea/misc.xml
+/.idea/modules.xml
+/.idea/MyExportToMd.iml
+/.idea/vcs.xml
+/ai_propmpts/firefox-plugin-my-export-to-md
+/addon.zip
