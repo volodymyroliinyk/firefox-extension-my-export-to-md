@@ -1,7 +1,6 @@
 /.idea
 /ai_prompts
-/dist
-/.release
 /node_modules
 /reports
+/sh
 addon.zip

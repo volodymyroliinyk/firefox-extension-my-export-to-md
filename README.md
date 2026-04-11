@@ -1,57 +1,88 @@
-# ExportToMD Firefox Extension
+# My Export to MD (Firefox Extension)
 
-This is a Firefox extension that allows you to easily export the current web page or a specific selected HTML element on
-the page into a Markdown (`.md`) file.
+Firefox extension for exporting the current page or a selected HTML element to a Markdown (`.md`) file.
 
-## Features
+## What it does
 
-* **Export Full Page:** Click the extension icon and select "Вся сторінка" from the bottom menu to save the entire page
-  as Markdown.
-* **Export Selected Element:** Click the extension icon to enter selection mode. Hover over elements on the page (they
-  will be highlighted with a blue border). Click an element to save only that specific HTML element and its contents as
-  Markdown.
-* **Cancel Selection:** Click the "Скасувати вибір елемента" button to cancel the selection mode.
+- Exports the full current page to Markdown.
+- Exports a selected element (with all nested content) to Markdown.
+- Generates filenames in format: `<normalizedUrl>_<yyyymmdd_hhmmss>.md`.
 
-## Developer Instructions
+## User flow
 
-### Prerequisites
+1. Click the extension icon in Firefox toolbar.
+2. Hover page elements to see highlight.
+3. Click an element to lock selection.
+4. In the bottom panel choose:
+   - `Вся сторінка` for full-page export.
+   - `Вибраний елемент` for selected-element export.
+5. Press `Esc` to unlock/cancel selection mode.
 
-* Node.js and npm installed on your system.
-* Firefox browser.
+Important: the bottom action panel appears only after an element is selected (locked).
 
-### Setup and Build
+## Tech stack
 
-1. **Install dependencies:**
-   Open a terminal in the extension's root directory and run:
-   ```bash
-   npm install
-   ```
+- TypeScript
+- WebExtensions API (Firefox, Manifest V2)
+- `esbuild`
+- `turndown`
+- `web-ext`
 
-2. **Build the extension:**
-   We provide a bash script to build the extension. Run the following command:
-   ```bash
-   ./sh/build.sh
-   ```
-   This script will:
-    * Compile the TypeScript files in `src/` using `esbuild`.
-    * Output the compiled JavaScript to the `dist/` directory.
-    * Bundle `manifest.json` and the `dist/` folder into an `addon.zip` file.
+## Project structure
 
-### Loading the Extension in Firefox
+- `src/background.ts` - browser action handling, content script injection, download flow.
+- `src/content.ts` - selection mode UI and interaction logic.
+- `src/utils.ts` - HTML to Markdown conversion helpers.
+- `sh/build.sh` - production build + zip packaging.
+- `sh/dev.sh` - local development run wrapper for `web-ext run`.
 
-1. Open Firefox and navigate to `about:debugging`.
-2. Click on "This Firefox" in the left sidebar.
-3. Click the "Load Temporary Add-on..." button.
-4. Navigate to the directory where you built the extension and select the `manifest.json` file (or the generated
-   `addon.zip`).
-5. The extension is now loaded temporarily. A new icon should appear on your Firefox toolbar.
+## Prerequisites
 
-### Development Process
+- Node.js (LTS recommended)
+- npm
+- Firefox
 
-* Source files are located in the `src/` directory.
-    * `src/background.ts`: Handles background tasks and native downloads.
-    * `src/content.ts`: Injected into the page to handle user interaction and selection.
-    * `src/utils.ts`: Helper functions (e.g., HTML to Markdown conversion).
+## Setup
 
-* Re-run `./sh/build.sh` after making changes to the source files. You may need to click "Reload" in the
-  `about:debugging` page in Firefox to apply the updates.
+```bash
+npm install
+```
+
+## Commands
+
+```bash
+# Build JS bundles and create addon.zip
+npm run build
+
+# Run extension in Firefox for local development
+npm run dev
+```
+
+## Local load in Firefox
+
+1. Open `about:debugging#/runtime/this-firefox`.
+2. Click `Load Temporary Add-on...`.
+3. Select `manifest.json` from this project.
+
+## Build output
+
+- `dist/background.js`
+- `dist/content.js`
+- `addon.zip`
+
+## Notes for release
+
+- Permission model uses `activeTab` + on-demand script injection (no global `<all_urls>` content script registration).
+- Run lint before publishing:
+
+```bash
+./node_modules/.bin/web-ext lint --source-dir ./ --output json
+```
+
+## Author
+
+- Volodymyr
+
+## License
+
+MIT. See [LICENSE](LICENSE).
