@@ -23,13 +23,14 @@ if npm run lint; then
             mkdir -p "$release_dir"
             cp manifest.json "$release_dir/"
             cp -r dist "$release_dir/"
+            cp -r icons "$release_dir/"
 
             echo "Running lint on clean release directory..."
             ./node_modules/.bin/web-ext lint --source-dir "./$release_dir" --warnings-as-errors
 
             echo "Creating addon.zip..."
             rm -f addon.zip
-            (cd "$release_dir" && zip -r ../addon.zip manifest.json dist/)
+            (cd "$release_dir" && zip -r ../addon.zip manifest.json dist/ icons/)
         ); then
             echo "Build complete. Lint and tests passed; addon.zip is ready."
         else
