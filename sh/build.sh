@@ -1,18 +1,28 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Exit on any error
-set -e
+set -euo pipefail
 
-# Create dist directory
+release_dir=".release"
+
+echo "Building JavaScript bundles..."
 mkdir -p dist
-
-# Build with esbuild
 ./node_modules/.bin/esbuild src/content.ts --bundle --outfile=dist/content.js
 ./node_modules/.bin/esbuild src/background.ts --bundle --outfile=dist/background.js
 
-# Create a zip file for Firefox
+echo "Running tests..."
+npm run test
+
+echo "Preparing clean release directory..."
+rm -rf "$release_dir"
+mkdir -p "$release_dir"
+cp manifest.json "$release_dir/"
+cp -r dist "$release_dir/"
+
+echo "Running lint on clean release directory..."
+./node_modules/.bin/web-ext lint --source-dir "./$release_dir" --warnings-as-errors
+
 echo "Creating addon.zip..."
 rm -f addon.zip
-zip -r addon.zip manifest.json dist/
+(cd "$release_dir" && zip -r ../addon.zip manifest.json dist/)
 
-echo "Build complete! Load addon.zip or the directory in Firefox about:debugging"
+echo "Build complete. Tests and release lint passed; addon.zip is ready."
