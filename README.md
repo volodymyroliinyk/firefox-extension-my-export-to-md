@@ -14,8 +14,8 @@ Firefox extension for exporting the current page or a selected HTML element to a
 2. Hover page elements to see highlight.
 3. Click an element to lock selection.
 4. In the bottom panel choose:
-   - `Вся сторінка` for full-page export.
-   - `Вибраний елемент` for selected-element export.
+   - `The whole page` for full-page export.
+   - `Selected item` for selected-element export.
 5. Press `Esc` to unlock/cancel selection mode.
 
 Important: the bottom action panel appears only after an element is selected (locked).
