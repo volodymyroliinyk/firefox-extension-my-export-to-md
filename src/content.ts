@@ -1,7 +1,50 @@
 import {htmlToMarkdown} from './utils';
 
+type StartSelectionMessage = {
+    action: 'start-selection';
+};
+
+const OVERLAY_Z_INDEX = '999999';
+const CONTROLS_Z_INDEX = '1000000';
+
+const overlayStyles = {
+    base: {
+        position: 'absolute',
+        pointerEvents: 'none',
+        zIndex: OVERLAY_Z_INDEX,
+        transition: 'all 0.1s ease-out',
+    },
+    hover: {
+        border: '3px solid #0078D7',
+        backgroundColor: 'rgba(0, 120, 215, 0.1)',
+    },
+    locked: {
+        border: '3px solid #28a745',
+        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+    },
+} as const;
+
+type SelectionState = {
+    hoveredElement: HTMLElement | null;
+    lockedElement: HTMLElement | null;
+    selectionModeActive: boolean;
+    highlightOverlay: HTMLDivElement | null;
+    controlsContainer: HTMLDivElement | null;
+};
+
+const state: SelectionState = {
+    hoveredElement: null,
+    lockedElement: null,
+    selectionModeActive: false,
+    highlightOverlay: null,
+    controlsContainer: null,
+};
+
 function generateFilename(): string {
-    const url = window.location.href.replace(/^https?:\/\//, '').replace(/[^a-zA-Z0-9]/g, '_');
+    const sanitizedUrl = window.location.href
+        .replace(/^https?:\/\//, '')
+        .replace(/[^a-zA-Z0-9]/g, '_');
+
     const now = new Date();
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, '0');
@@ -9,202 +52,253 @@ function generateFilename(): string {
     const hh = String(now.getHours()).padStart(2, '0');
     const ii = String(now.getMinutes()).padStart(2, '0');
     const ss = String(now.getSeconds()).padStart(2, '0');
-    const dateStr = `${yyyy}${mm}${dd}_${hh}${ii}${ss}`;
-    return `${url}_${dateStr}.md`;
+
+    return `${sanitizedUrl}_${yyyy}${mm}${dd}_${hh}${ii}${ss}.md`;
 }
 
-let hoveredElement: HTMLElement | null = null;
-let lockedElement: HTMLElement | null = null;
-let selectionModeActive = false;
-let highlightOverlay: HTMLDivElement | null = null;
-let controlsContainer: HTMLDivElement | null = null;
-
-function createOverlay() {
-    if (highlightOverlay) return;
-    highlightOverlay = document.createElement('div');
-    highlightOverlay.style.position = 'absolute';
-    highlightOverlay.style.pointerEvents = 'none';
-    highlightOverlay.style.zIndex = '999999';
-    highlightOverlay.style.border = '3px solid #0078D7';
-    highlightOverlay.style.backgroundColor = 'rgba(0, 120, 215, 0.1)';
-    highlightOverlay.style.transition = 'all 0.1s ease-out';
-    document.body.appendChild(highlightOverlay);
+function applyStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
+    Object.assign(element.style, styles);
 }
 
-function updateOverlay(el: HTMLElement) {
-    if (!highlightOverlay) return;
-    const rect = el.getBoundingClientRect();
+function setOverlayHoverStyles(): void {
+    if (!state.highlightOverlay) {
+        return;
+    }
+
+    applyStyles(state.highlightOverlay, overlayStyles.hover);
+}
+
+function setOverlayLockedStyles(): void {
+    if (!state.highlightOverlay) {
+        return;
+    }
+
+    applyStyles(state.highlightOverlay, overlayStyles.locked);
+}
+
+function createOverlay(): void {
+    if (state.highlightOverlay) {
+        return;
+    }
+
+    const overlay = document.createElement('div');
+    applyStyles(overlay, overlayStyles.base);
+    state.highlightOverlay = overlay;
+    setOverlayHoverStyles();
+    document.body.appendChild(overlay);
+}
+
+function updateOverlay(element: HTMLElement): void {
+    if (!state.highlightOverlay) {
+        return;
+    }
+
+    const rect = element.getBoundingClientRect();
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
     const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
 
-    highlightOverlay.style.top = `${rect.top + scrollTop}px`;
-    highlightOverlay.style.left = `${rect.left + scrollLeft}px`;
-    highlightOverlay.style.width = `${rect.width}px`;
-    highlightOverlay.style.height = `${rect.height}px`;
+    state.highlightOverlay.style.top = `${rect.top + scrollTop}px`;
+    state.highlightOverlay.style.left = `${rect.left + scrollLeft}px`;
+    state.highlightOverlay.style.width = `${rect.width}px`;
+    state.highlightOverlay.style.height = `${rect.height}px`;
 }
 
-function removeOverlay() {
-    if (highlightOverlay && highlightOverlay.parentNode) {
-        highlightOverlay.parentNode.removeChild(highlightOverlay);
-        highlightOverlay = null;
+function removeOverlay(): void {
+    if (state.highlightOverlay?.parentNode) {
+        state.highlightOverlay.parentNode.removeChild(state.highlightOverlay);
+    }
+    state.highlightOverlay = null;
+}
+
+function resetLockedState(): void {
+    state.lockedElement = null;
+    setOverlayHoverStyles();
+    removeControls();
+}
+
+function isIgnoredTarget(element: HTMLElement | null): boolean {
+    if (!element) {
+        return true;
+    }
+
+    return (
+        element === document.body
+        || element === document.documentElement
+        || (state.controlsContainer ? state.controlsContainer.contains(element) : false)
+    );
+}
+
+function handleMouseMove(event: MouseEvent): void {
+    if (!state.selectionModeActive || state.lockedElement) {
+        return;
+    }
+
+    const element = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+    if (isIgnoredTarget(element)) {
+        return;
+    }
+
+    if (state.hoveredElement !== element && element) {
+        state.hoveredElement = element;
+        updateOverlay(element);
     }
 }
 
-function handleMouseMove(e: MouseEvent) {
-    if (!selectionModeActive || lockedElement) return;
+function stopSelectionMode(): void {
+    state.selectionModeActive = false;
+    state.lockedElement = null;
+    state.hoveredElement = null;
 
-    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement;
-    if (!el || el === document.body || el === document.documentElement || (controlsContainer && controlsContainer.contains(el))) return;
-
-    if (hoveredElement !== el) {
-        hoveredElement = el;
-        updateOverlay(el);
-    }
-}
-
-function stopSelectionMode() {
-    selectionModeActive = false;
-    lockedElement = null;
-    hoveredElement = null;
     document.removeEventListener('mousemove', handleMouseMove);
     document.removeEventListener('click', handleClick, true);
-    // Also remove keydown listener for Escape
     document.removeEventListener('keydown', handleKeyDown);
+
     removeOverlay();
     removeControls();
 }
 
-function handleKeyDown(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-        if (lockedElement) {
-            // unlock and go back to hover mode
-            lockedElement = null;
-            removeControls();
-        } else {
-            stopSelectionMode();
-        }
+function handleKeyDown(event: KeyboardEvent): void {
+    if (event.key !== 'Escape') {
+        return;
     }
+
+    if (state.lockedElement) {
+        resetLockedState();
+        return;
+    }
+
+    stopSelectionMode();
 }
 
-function handleClick(e: MouseEvent) {
-    if (!selectionModeActive) return;
-
-    // if clicking inside controls, let it happen
-    const target = e.target as HTMLElement;
-    if (controlsContainer && controlsContainer.contains(target)) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (lockedElement) {
-        // click outside unlocks
-        lockedElement = null;
-        removeControls();
-    } else if (hoveredElement) {
-        lockedElement = hoveredElement;
-        updateOverlay(lockedElement);
-        highlightOverlay!.style.border = '3px solid #28a745'; // target locked color
-        highlightOverlay!.style.backgroundColor = 'rgba(40, 167, 69, 0.1)';
-        showControls();
+function handleClick(event: MouseEvent): void {
+    if (!state.selectionModeActive) {
+        return;
     }
+
+    const target = event.target as HTMLElement;
+    if (state.controlsContainer?.contains(target)) {
+        return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (state.lockedElement) {
+        resetLockedState();
+        return;
+    }
+
+    if (!state.hoveredElement) {
+        return;
+    }
+
+    state.lockedElement = state.hoveredElement;
+    updateOverlay(state.lockedElement);
+    setOverlayLockedStyles();
+    showControls();
 }
 
-function downloadMarkdown(markdown: string, filename: string) {
+function downloadMarkdown(markdown: string, filename: string): void {
     browser.runtime.sendMessage({
         action: 'download-markdown',
-        markdown: markdown,
-        filename: filename
+        markdown,
+        filename,
     });
 }
 
-function showControls() {
-    if (controlsContainer) return;
+function buildStyledButton(text: string, backgroundColor: string): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.textContent = text;
+    button.style.padding = '8px 16px';
+    button.style.cursor = 'pointer';
+    button.style.backgroundColor = backgroundColor;
+    button.style.color = 'white';
+    button.style.border = 'none';
+    button.style.borderRadius = '4px';
+    return button;
+}
 
-    controlsContainer = document.createElement('div');
-    controlsContainer.style.position = 'fixed';
-    controlsContainer.style.bottom = '20px';
-    controlsContainer.style.left = '50%';
-    controlsContainer.style.transform = 'translateX(-50%)';
-    controlsContainer.style.zIndex = '1000000';
-    controlsContainer.style.backgroundColor = 'white';
-    controlsContainer.style.padding = '15px';
-    controlsContainer.style.borderRadius = '8px';
-    controlsContainer.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-    controlsContainer.style.display = 'flex';
-    controlsContainer.style.gap = '10px';
-    controlsContainer.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+function showControls(): void {
+    if (state.controlsContainer) {
+        return;
+    }
+
+    const controls = document.createElement('div');
+    controls.style.position = 'fixed';
+    controls.style.bottom = '20px';
+    controls.style.left = '50%';
+    controls.style.transform = 'translateX(-50%)';
+    controls.style.zIndex = CONTROLS_Z_INDEX;
+    controls.style.backgroundColor = 'white';
+    controls.style.padding = '15px';
+    controls.style.borderRadius = '8px';
+    controls.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+    controls.style.display = 'flex';
+    controls.style.gap = '10px';
+    controls.style.fontFamily = 'system-ui, -apple-system, sans-serif';
 
     const title = document.createElement('div');
-    title.textContent = 'Зберегти як Markdown';
+    title.textContent = 'Save as Markdown';
     title.style.fontWeight = 'bold';
     title.style.marginRight = '10px';
     title.style.alignSelf = 'center';
-    controlsContainer.appendChild(title);
 
-    const fullPageBtn = document.createElement('button');
-    fullPageBtn.textContent = 'Вся сторінка';
-    fullPageBtn.style.padding = '8px 16px';
-    fullPageBtn.style.cursor = 'pointer';
-    fullPageBtn.style.backgroundColor = '#0078D7';
-    fullPageBtn.style.color = 'white';
-    fullPageBtn.style.border = 'none';
-    fullPageBtn.style.borderRadius = '4px';
+    const fullPageButton = buildStyledButton('The whole page', '#0078D7');
+    fullPageButton.addEventListener('click', () => {
+        const pageTitle = document.title || 'page';
+        const clonedDocument = document.documentElement.cloneNode(true) as HTMLElement;
+        const removableNodes = clonedDocument.querySelectorAll('script, style');
+        removableNodes.forEach((node) => node.remove());
 
-    fullPageBtn.addEventListener('click', () => {
-        const title = document.title || 'page';
-        const clone = document.documentElement.cloneNode(true) as HTMLElement;
-        const scripts = clone.querySelectorAll('script, style');
-        scripts.forEach(s => s.remove());
-        const markdown = htmlToMarkdown(clone.outerHTML);
-        downloadMarkdown(`# ${title}\n\n${markdown}`, generateFilename());
+        const markdown = htmlToMarkdown(clonedDocument.outerHTML);
+        downloadMarkdown(`# ${pageTitle}\n\n${markdown}`, generateFilename());
         stopSelectionMode();
     });
 
-    const elementBtn = document.createElement('button');
-    elementBtn.textContent = 'Вибраний елемент';
-    elementBtn.style.padding = '8px 16px';
-    elementBtn.style.cursor = 'pointer';
-    elementBtn.style.backgroundColor = '#28a745';
-    elementBtn.style.color = 'white';
-    elementBtn.style.border = 'none';
-    elementBtn.style.borderRadius = '4px';
-
-    elementBtn.addEventListener('click', () => {
-        if (lockedElement) {
-            const htmlSnippet = lockedElement.outerHTML;
-            const markdown = htmlToMarkdown(htmlSnippet);
-            downloadMarkdown(markdown, generateFilename());
-            stopSelectionMode();
+    const selectedElementButton = buildStyledButton('Selected item', '#28a745');
+    selectedElementButton.addEventListener('click', () => {
+        if (!state.lockedElement) {
+            return;
         }
+
+        const markdown = htmlToMarkdown(state.lockedElement.outerHTML);
+        downloadMarkdown(markdown, generateFilename());
+        stopSelectionMode();
     });
 
-    controlsContainer.appendChild(fullPageBtn);
-    controlsContainer.appendChild(elementBtn);
-
-    // add click outside listener note
     const hint = document.createElement('div');
-    hint.textContent = '(Esc щоб скасувати)';
+    hint.textContent = '(Esc to cancel)';
     hint.style.fontSize = '12px';
     hint.style.color = '#777';
     hint.style.alignSelf = 'center';
     hint.style.marginLeft = '10px';
-    controlsContainer.appendChild(hint);
 
-    document.body.appendChild(controlsContainer);
+    controls.appendChild(title);
+    controls.appendChild(fullPageButton);
+    controls.appendChild(selectedElementButton);
+    controls.appendChild(hint);
+
+    state.controlsContainer = controls;
+    document.body.appendChild(controls);
 }
 
-function removeControls() {
-    if (controlsContainer && controlsContainer.parentNode) {
-        controlsContainer.parentNode.removeChild(controlsContainer);
-        controlsContainer = null;
+function removeControls(): void {
+    if (state.controlsContainer?.parentNode) {
+        state.controlsContainer.parentNode.removeChild(state.controlsContainer);
     }
+
+    state.controlsContainer = null;
 }
 
-export function startSelectionMode() {
-    if (selectionModeActive) return;
-    selectionModeActive = true;
-    lockedElement = null;
-    hoveredElement = null;
+export function startSelectionMode(): void {
+    if (state.selectionModeActive) {
+        return;
+    }
+
+    state.selectionModeActive = true;
+    state.lockedElement = null;
+    state.hoveredElement = null;
+
     createOverlay();
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -212,8 +306,8 @@ export function startSelectionMode() {
     document.addEventListener('keydown', handleKeyDown);
 }
 
-browser.runtime.onMessage.addListener((message) => {
-    if (message.action === "start-selection") {
+browser.runtime.onMessage.addListener((message: StartSelectionMessage) => {
+    if (message.action === 'start-selection') {
         startSelectionMode();
     }
 });
