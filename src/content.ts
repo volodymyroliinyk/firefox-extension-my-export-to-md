@@ -155,8 +155,7 @@ function showControls() {
         const clone = document.documentElement.cloneNode(true) as HTMLElement;
         const scripts = clone.querySelectorAll('script, style');
         scripts.forEach(s => s.remove());
-
-        const markdown = htmlToMarkdown(document.body.outerHTML);
+        const markdown = htmlToMarkdown(clone.outerHTML);
         downloadMarkdown(`# ${title}\n\n${markdown}`, generateFilename());
         stopSelectionMode();
     });

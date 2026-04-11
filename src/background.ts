@@ -1,11 +1,24 @@
-browser.browserAction.onClicked.addListener((tab) => {
-    if (tab.id) {
-        // Send a message to the active tab to start the selection process
-        browser.tabs.sendMessage(tab.id, {action: "start-selection"}).catch(error => {
-            console.error("Error sending message to content script:", error);
-            // It's possible the content script isn't loaded yet on this tab, or it's a restricted page.
-        });
+async function ensureContentScriptAndStartSelection(tabId: number): Promise<void> {
+    try {
+        await browser.tabs.sendMessage(tabId, {action: "start-selection"});
+        return;
+    } catch {
+        // Content script is likely not injected in this tab yet.
     }
+
+    await browser.tabs.executeScript(tabId, {file: "dist/content.js"});
+    await browser.tabs.sendMessage(tabId, {action: "start-selection"});
+}
+
+browser.browserAction.onClicked.addListener((tab) => {
+    if (!tab.id) {
+        return;
+    }
+
+    ensureContentScriptAndStartSelection(tab.id).catch((error) => {
+        // Restricted pages (about:, addons.mozilla.org, etc.) can reject script injection.
+        console.error("Cannot start selection mode on this tab:", error);
+    });
 });
 
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
