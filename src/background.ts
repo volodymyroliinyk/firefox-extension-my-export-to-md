@@ -10,7 +10,7 @@ type DownloadMarkdownMessage = {
 
 type RuntimeMessage = StartSelectionMessage | DownloadMarkdownMessage;
 
-const CONTENT_SCRIPT_FILE = 'dist/content.js';
+const CONTENT_SCRIPT_FILE = '/dist/content.js';
 
 function isDownloadMarkdownMessage(message: unknown): message is DownloadMarkdownMessage {
     if (!message || typeof message !== 'object') {
@@ -33,7 +33,10 @@ async function ensureContentScriptAndStartSelection(tabId: number): Promise<void
         // Content script is likely not injected in this tab yet.
     }
 
-    await browser.tabs.executeScript(tabId, {file: CONTENT_SCRIPT_FILE});
+    await browser.scripting.executeScript({
+        target: {tabId},
+        files: [CONTENT_SCRIPT_FILE],
+    });
     await browser.tabs.sendMessage(tabId, {action: 'start-selection'});
 }
 
@@ -54,7 +57,7 @@ async function handleDownloadMarkdown(message: DownloadMarkdownMessage): Promise
     }
 }
 
-browser.browserAction.onClicked.addListener((tab) => {
+browser.action.onClicked.addListener((tab) => {
     if (!tab.id) {
         return;
     }

@@ -33,7 +33,7 @@ cp -r dist "$release_dir/"
 cp -r icons "$release_dir/"
 
 echo "Running lint on clean release directory..."
-./node_modules/.bin/web-ext lint --source-dir "./$release_dir" --warnings-as-errors
+./sh/lint-webext.sh "./$release_dir"
 
 echo "Creating addon.zip..."
 rm -f addon.zip
