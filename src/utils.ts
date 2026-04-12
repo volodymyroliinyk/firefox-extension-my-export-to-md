@@ -115,7 +115,10 @@ function toMarkdownTable(table: HTMLTableElement): string {
     const firstHeaderRowIndex = rows.findIndex((row) => row.hasHeaderCell);
     const headerRowIndex = firstHeaderRowIndex >= 0 ? firstHeaderRowIndex : 0;
 
-    const headerRow = normalizedRows[headerRowIndex];
+    const headerRow = normalizedRows[headerRowIndex] ?? normalizedRows[0];
+    if (!headerRow) {
+        return '';
+    }
     const bodyRows = normalizedRows.filter((_, index) => index !== headerRowIndex);
 
     const headerLine = `| ${headerRow.join(' | ')} |`;

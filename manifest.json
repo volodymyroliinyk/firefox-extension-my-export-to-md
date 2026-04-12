@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "MyExportToMD",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Firefox extension to export full page or selected elements to Markdown file",
   "author": "Volodymyr Oliinyk",
   "homepage_url": "https://github.com/volodymyroliinyk/my-export-to-md",

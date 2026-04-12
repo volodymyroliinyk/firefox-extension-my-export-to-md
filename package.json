@@ -1,6 +1,6 @@
 {
   "name": "my-export-to-md",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "Firefox extension to export full page or selected elements to Markdown file",
   "author": "Volodymyr Oliinyk <volodymyr.oliinyk.name@gmail.com>",
   "license": "MIT",
@@ -13,7 +13,10 @@
     "url": "https://github.com/volodymyroliinyk/my-export-to-md/issues"
   },
   "scripts": {
-    "lint": "./node_modules/.bin/web-ext lint --source-dir ./ --warnings-as-errors --ignore-files \"sh/*\" \"*.zip\" \"node_modules/*\" \".git/*\" \".idea/*\" \"ai_prompts/*\" \"tests/*\" \"src/*\" \"*.md\" \"package-lock.json\" \"package.json\" \"tsconfig.json\"",
+    "lint": "npm run lint:webext && npm run lint:types && npm run lint:tests",
+    "lint:webext": "./node_modules/.bin/web-ext lint --source-dir ./ --warnings-as-errors --ignore-files \"sh/*\" \"*.zip\" \"node_modules/*\" \".git/*\" \".idea/*\" \"ai_prompts/*\" \"*.md\" \"package-lock.json\" \"package.json\" \"tsconfig.json\"",
+    "lint:types": "./node_modules/.bin/tsc --noEmit",
+    "lint:tests": "./node_modules/.bin/eslint \"tests/**/*.cjs\"",
     "test": "./sh/test.sh",
     "build": "./sh/build.sh",
     "dev": "./sh/dev.sh",
