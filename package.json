@@ -19,6 +19,7 @@
     "lint:types": "./node_modules/.bin/tsc --noEmit",
     "lint:tests": "./node_modules/.bin/eslint \"tests/**/*.cjs\"",
     "test": "./sh/test.sh",
+    "test:smoke": "./sh/smoke-firefox.sh",
     "build": "./sh/build.sh",
     "dev": "./sh/dev.sh",
     "release": "./sh/release.sh"
