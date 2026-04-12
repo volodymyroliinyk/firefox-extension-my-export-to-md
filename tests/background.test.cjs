@@ -19,12 +19,14 @@ function createBackgroundEnv() {
             async sendMessage(tabId, payload) {
                 calls.sendMessage.push({tabId, payload});
                 return {ok: true};
-            },
-            async executeScript(tabId, payload) {
-                calls.executeScript.push({tabId, payload});
             }
         },
-        browserAction: {
+        scripting: {
+            async executeScript(payload) {
+                calls.executeScript.push(payload);
+            }
+        },
+        action: {
             onClicked: {
                 addListener(listener) {
                     clickListeners.push(listener);
@@ -90,7 +92,10 @@ test('background injects content script when first sendMessage fails', async () 
 
     assert.equal(env.calls.sendMessage.length, 2);
     assert.deepEqual(env.calls.executeScript, [
-        {tabId: 4, payload: {file: 'dist/content.js'}}
+        {
+            target: {tabId: 4},
+            files: ['/dist/content.js']
+        }
     ]);
 });
 

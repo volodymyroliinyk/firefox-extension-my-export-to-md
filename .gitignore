@@ -5,4 +5,6 @@
 /node_modules
 /reports
 /.test-build
+/web-ext-artifacts
 addon.zip
+/hidden.md
