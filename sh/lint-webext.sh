@@ -38,29 +38,19 @@ fi
 
 node - "$lint_output" <<'JS'
 const report = JSON.parse(process.argv[2]);
-const allowedWarningCodes = new Set(['BACKGROUND_SERVICE_WORKER_IGNORED']);
-
 const warnings = report.warnings || [];
-const disallowedWarnings = warnings.filter(
-  (warning) => !allowedWarningCodes.has(warning.code)
-);
-
-if ((report.summary?.errors ?? 0) > 0 || disallowedWarnings.length > 0) {
+if ((report.summary?.errors ?? 0) > 0 || warnings.length > 0) {
   if ((report.summary?.errors ?? 0) > 0) {
     console.error('web-ext lint errors found.');
   }
 
-  if (disallowedWarnings.length > 0) {
-    console.error('web-ext lint has disallowed warnings:');
-    for (const warning of disallowedWarnings) {
+  if (warnings.length > 0) {
+    console.error('web-ext lint warnings found:');
+    for (const warning of warnings) {
       console.error(`- ${warning.code}: ${warning.message}`);
     }
   }
 
   process.exit(1);
-}
-
-if (warnings.length > 0) {
-  console.log('web-ext lint warnings are allowed by policy only for: BACKGROUND_SERVICE_WORKER_IGNORED');
 }
 JS

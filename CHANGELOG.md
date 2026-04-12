@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog,
 and this project follows Semantic Versioning.
 
+## [1.0.8] - 2026-04-12
+
+### Fixed
+
+- Removed unsupported `background.service_worker` from Firefox manifest to eliminate the Firefox warning and rely on
+  compatible `background.scripts` execution.
+- Tightened `web-ext` lint policy to fail on any warning, preventing ignored compatibility warnings from slipping into
+  release builds.
+
 ## [1.0.7] - 2026-04-11
 
 ### Added
