@@ -202,6 +202,22 @@ do_github="true"
 allow_dirty="false"
 version=""
 xpi_path=""
+release_tag_name=""
+release_tag_created="false"
+publish_completed="false"
+
+cleanup_release_tag_on_failure() {
+  if [[ "$release_tag_created" != "true" || "$publish_completed" == "true" ]]; then
+    return
+  fi
+
+  if [[ -n "$release_tag_name" ]] && git rev-parse -q --verify "refs/tags/$release_tag_name" >/dev/null 2>&1; then
+    git tag -d "$release_tag_name" >/dev/null 2>&1 || true
+    echo "Publish failed: removed local tag $release_tag_name to avoid inconsistent release state."
+  fi
+}
+
+trap cleanup_release_tag_on_failure ERR
 
 if [[ $# -gt 0 ]]; then
   case "$1" in
@@ -277,13 +293,18 @@ npm run build
 echo "Committing release changes..."
 git add package.json package-lock.json manifest.json CHANGELOG.md
 git commit -m "release: v$version"
-git tag -a "v$version" -m "Release v$version"
+release_tag_name="v$version"
+git tag -a "$release_tag_name" -m "Release $release_tag_name"
+release_tag_created="true"
 
 echo "Publishing to AMO..."
 release_to_amo
 
 echo "Publishing to GitHub Releases..."
 release_to_github
+
+publish_completed="true"
+trap - ERR
 
 echo "Release completed: v$version"
 echo "Next step: git push origin HEAD --follow-tags"
