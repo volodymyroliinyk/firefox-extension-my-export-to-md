@@ -27,8 +27,8 @@
       ```
       git checkout main;
       git pull origin main;
-      git tag -a 1.0.8 -m "Release 1.0.8";
-      git push origin 1.0.8;
+      git tag -a 1.0.10 -m "Release 1.0.10";
+      git push origin 1.0.10;
       ```
 - build production release
 - upload to firefox dev portal (https://addons.mozilla.org/en-US/developers/addon/myexporttomd/versions)
