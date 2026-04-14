@@ -1,0 +1,39 @@
+MyExportToMd/
+├── docs/
+│   └── development-workflow.md
+├── icons/
+│   ├── icon-128.png
+│   ├── icon-16.png
+│   ├── icon-32.png
+│   ├── icon-48.png
+│   ├── icon-96.png
+│   └── icon.svg
+├── sh/
+│   ├── lib/
+│   │   └── amo-auth.sh
+│   ├── build-dev.sh
+│   ├── build.sh
+│   ├── dev.sh
+│   ├── lint-webext.sh
+│   ├── release.sh
+│   ├── smoke-firefox.sh
+│   └── test.sh
+├── src/
+│   ├── background.ts
+│   ├── content.ts
+│   ├── export-config.ts
+│   └── utils.ts
+├── tests/
+│   ├── background.test.cjs
+│   ├── content.test.cjs
+│   └── utils.test.cjs
+├── CHANGELOG.md
+├── LICENSE
+├── README.md
+├── directory-tree.txt
+├── eslint.config.mjs
+├── list.todo
+├── manifest.json
+├── package-lock.json
+├── package.json
+└── tsconfig.json
