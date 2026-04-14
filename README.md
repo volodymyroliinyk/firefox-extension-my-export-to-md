@@ -8,7 +8,8 @@ Firefox extension for exporting the current page or a selected HTML element to a
 - Exports a selected element (with all nested content) to Markdown.
 - Converts common HTML structures to Markdown (headings, lists, code blocks, links, images, tables).
 - Supports HTML table conversion including `colspan` and `rowspan` flattening to Markdown-compatible table grids.
-- Generates filenames in format: `<normalizedUrl>_<yyyymmdd_hhmmss>.md`.
+- Generates filenames in format: `<normalizedUrl>_<FP|SE>_<yyyymmdd_hhmmss>.md`.
+- Lets the user define a remembered subfolder inside Firefox's default Downloads directory for exported `.md` files.
 
 ## User flow
 
@@ -16,6 +17,7 @@ Firefox extension for exporting the current page or a selected HTML element to a
 2. Hover page elements to see highlight.
 3. Click an element to lock selection.
 4. In the bottom panel choose:
+    - Optional: set `Folder inside Firefox Downloads` to a remembered relative folder like `notes/articles`.
    - `The whole page` for full-page export.
    - `Selected item` for selected-element export.
 5. Press `Esc` to unlock/cancel selection mode.
@@ -38,6 +40,8 @@ Important: the bottom action panel appears only after an element is selected (lo
 - `tests/*.test.cjs` - unit tests for background/content/parser behavior.
 - `sh/test.sh` - type-check + test runner wrapper.
 - `sh/build.sh` - lint + tests + build + release package lint + `addon.zip` creation.
+- `sh/build-dev.sh` - dev build with alternate add-on identity, `addon-dev.zip`, and fast-signed `addon-dev.xpi` for
+  private Firefox testing.
 - `sh/release.sh` - automated version bump, changelog update, build, commit/tag, AMO + GitHub publishing flow.
 - `sh/lint-webext.sh` - policy wrapper around `web-ext lint` JSON output.
 - `sh/smoke-firefox.sh` - optional runtime smoke test in Firefox.
@@ -69,6 +73,9 @@ RUN_SMOKE_TEST=true npm run test:smoke
 # Build bundles and create addon.zip
 npm run build
 
+# Build a DEV variant and fast-sign it for private manual testing
+npm run build:dev
+
 # Run extension in Firefox for local development
 npm run dev
 
@@ -87,7 +94,10 @@ npm run release -- patch
 - `dist/background.js`
 - `dist/content.js`
 - `.release/`
+- `.release-dev/`
 - `addon.zip`
+- `addon-dev.zip`
+- `addon-dev.xpi`
 
 ## Release notes
 
@@ -105,10 +115,19 @@ Required AMO environment variables:
 - `AMO_JWT_ISSUER`
 - `AMO_JWT_SECRET`
 
+Alternative names also supported:
+
+- `WEB_EXT_API_KEY`
+- `WEB_EXT_API_SECRET`
+
+These variables are also required for `npm run build:dev`, because the DEV build is signed through AMO's unlisted
+channel to install it as a separate temporary/private add-on.
+
 ## Security/permissions model
 
 - Uses `activeTab` and on-demand script execution (`scripting`) instead of persistent global content script
   registration.
+- Uses `storage` only to remember the user-selected export subfolder inside Firefox Downloads.
 - No broad `host_permissions` are requested.
 
 ## Author
