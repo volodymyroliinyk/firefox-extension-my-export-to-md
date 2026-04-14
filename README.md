@@ -36,13 +36,16 @@ Important: the bottom action panel appears only after an element is selected (lo
 
 - `src/background.ts` - toolbar action handling, content script start flow, markdown download handling.
 - `src/content.ts` - selection mode UI and interaction logic.
+- `src/export-config.ts` - shared filename, download path, and export-directory sanitization helpers.
 - `src/utils.ts` - HTML to Markdown conversion helpers (including table conversion).
 - `tests/*.test.cjs` - unit tests for background/content/parser behavior.
 - `sh/test.sh` - type-check + test runner wrapper.
-- `sh/build.sh` - lint + tests + build + release package lint + `addon.zip` creation.
+- `sh/build.sh` - production build pipeline: sync manifest version, run lint/tests, bundle sources, validate `.release`,
+  create `addon.zip`.
 - `sh/build-dev.sh` - dev build with alternate add-on identity, `addon-dev.zip`, and fast-signed `addon-dev.xpi` for
   private Firefox testing.
-- `sh/release.sh` - automated version bump, changelog update, build, commit/tag, AMO + GitHub publishing flow.
+- `sh/release.sh` - upload the fresh production package to AMO for signing/publication without touching git or GitHub.
+- `sh/lib/amo-auth.sh` - shared AMO credential resolution for dev signing and release publishing.
 - `sh/lint-webext.sh` - policy wrapper around `web-ext lint` JSON output.
 - `sh/smoke-firefox.sh` - optional runtime smoke test in Firefox.
 
@@ -79,8 +82,14 @@ npm run build:dev
 # Run extension in Firefox for local development
 npm run dev
 
-# Automated release flow
-npm run release -- patch
+# Upload the fresh production package to AMO
+npm run release
+
+# Upload without rebuilding first
+npm run release -- --skip-build
+
+# Upload as an unlisted AMO build
+npm run release -- --channel unlisted
 ```
 
 ## Local load in Firefox
@@ -96,19 +105,20 @@ npm run release -- patch
 - `.release/`
 - `.release-dev/`
 - `addon.zip`
+- `addon.xpi`
 - `addon-dev.zip`
 - `addon-dev.xpi`
 
 ## Release notes
 
-Automated release script (`sh/release.sh`) does the following:
+Release script (`sh/release.sh`) does the following:
 
-1. Verifies auth preconditions (`gh auth`, AMO JWT env vars).
-2. Bumps version and syncs `manifest.json` version.
-3. Generates/updates `CHANGELOG.md` from commit history.
-4. Runs full build pipeline.
-5. Creates release commit + annotated tag.
-6. Publishes to AMO and then GitHub Release.
+1. Resolves AMO credentials from supported environment variables.
+2. Runs a fresh production build by default.
+3. Uploads the generated production package to AMO for signing/publication.
+4. Saves the signed artifact locally as `addon.xpi`.
+
+It does not modify git state, changelog, versions, tags, or GitHub releases.
 
 Required AMO environment variables:
 

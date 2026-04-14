@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog,
 and this project follows Semantic Versioning.
 
+## [1.0.11] - 2026-04-14
+
+### Added
+
+- Added support for remembering a user-defined export subfolder inside Firefox Downloads.
+- Added mode-aware Markdown filenames in the format `<normalizedUrl>_<FP|SE>_<yyyymmdd_hhmmss>.md`.
+- Added a dedicated dev build flow that produces `addon-dev.zip` and a separately signed `addon-dev.xpi` for private
+  Firefox testing.
+
+### Changed
+
+- Refactored export filename and download path handling into shared configuration utilities for stronger consistency
+  across content and background scripts.
+- Updated release automation to use shared AMO credential resolution and explicit non-interactive signing arguments.
+- Documented the dev build workflow, generated artifacts, and supported AMO credential environment variable names.
+
+### Fixed
+
+- Improved export directory input readability with darker text and clearer focus styling.
+- Sanitized saved export directory paths before persistence and before download path construction.
+
 ## [1.0.8] - 2026-04-12
 
 ### Fixed
