@@ -2,6 +2,8 @@
 
 set -euo pipefail
 
+source "$(dirname "$0")/lib/amo-auth.sh"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -48,10 +50,7 @@ ensure_amo_auth() {
     return
   fi
 
-  if [[ -z "${AMO_JWT_ISSUER:-}" || -z "${AMO_JWT_SECRET:-}" ]]; then
-    echo "Error: AMO_JWT_ISSUER and AMO_JWT_SECRET are required for AMO release." >&2
-    exit 1
-  fi
+  resolve_amo_credentials
 }
 
 ensure_release_order_policy() {
@@ -162,10 +161,14 @@ release_to_amo() {
   fi
 
   mkdir -p web-ext-artifacts
+  print_amo_auth_source
 
   ./node_modules/.bin/web-ext sign \
     --source-dir ./.release \
     --artifacts-dir web-ext-artifacts \
+    --api-key "$AMO_API_KEY" \
+    --api-secret "$AMO_API_SECRET" \
+    --no-input \
     --channel "$amo_channel"
 
   xpi_path="$(ls -1t web-ext-artifacts/*.xpi | head -n1)"
