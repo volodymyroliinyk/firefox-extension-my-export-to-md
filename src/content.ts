@@ -1,7 +1,21 @@
+import {
+    buildMarkdownFilename,
+    DEFAULT_EXPORT_DIRECTORY,
+    EXPORT_DIRECTORY_STORAGE_KEY,
+    sanitizeDirectoryPath,
+    type ExportMode,
+} from './export-config';
 import {htmlToMarkdown} from './utils';
 
 type StartSelectionMessage = {
     action: 'start-selection';
+};
+
+type DownloadMarkdownMessage = {
+    action: 'download-markdown';
+    markdown: string;
+    filename: string;
+    directory: string;
 };
 
 const OVERLAY_Z_INDEX = '999999';
@@ -30,6 +44,8 @@ type SelectionState = {
     selectionModeActive: boolean;
     highlightOverlay: HTMLDivElement | null;
     controlsContainer: HTMLDivElement | null;
+    exportDirectory: string;
+    exportDirectoryInput: HTMLInputElement | null;
 };
 
 const state: SelectionState = {
@@ -38,26 +54,42 @@ const state: SelectionState = {
     selectionModeActive: false,
     highlightOverlay: null,
     controlsContainer: null,
+    exportDirectory: DEFAULT_EXPORT_DIRECTORY,
+    exportDirectoryInput: null,
 };
-
-function generateFilename(): string {
-    const sanitizedUrl = window.location.href
-        .replace(/^https?:\/\//, '')
-        .replace(/[^a-zA-Z0-9]/g, '_');
-
-    const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const hh = String(now.getHours()).padStart(2, '0');
-    const ii = String(now.getMinutes()).padStart(2, '0');
-    const ss = String(now.getSeconds()).padStart(2, '0');
-
-    return `${sanitizedUrl}_${yyyy}${mm}${dd}_${hh}${ii}${ss}.md`;
-}
 
 function applyStyles(element: HTMLElement, styles: Partial<CSSStyleDeclaration>): void {
     Object.assign(element.style, styles);
+}
+
+function generateFilename(mode: ExportMode): string {
+    return buildMarkdownFilename(window.location.href, mode);
+}
+
+async function loadSavedExportDirectory(): Promise<void> {
+    const saved = await browser.storage.local.get(EXPORT_DIRECTORY_STORAGE_KEY);
+    state.exportDirectory = sanitizeDirectoryPath(
+        typeof saved[EXPORT_DIRECTORY_STORAGE_KEY] === 'string'
+            ? saved[EXPORT_DIRECTORY_STORAGE_KEY]
+            : DEFAULT_EXPORT_DIRECTORY,
+    );
+
+    if (state.exportDirectoryInput) {
+        state.exportDirectoryInput.value = state.exportDirectory;
+    }
+}
+
+async function persistExportDirectory(rawPath: string): Promise<void> {
+    const sanitizedDirectory = sanitizeDirectoryPath(rawPath);
+    state.exportDirectory = sanitizedDirectory;
+
+    if (state.exportDirectoryInput && state.exportDirectoryInput.value !== sanitizedDirectory) {
+        state.exportDirectoryInput.value = sanitizedDirectory;
+    }
+
+    await browser.storage.local.set({
+        [EXPORT_DIRECTORY_STORAGE_KEY]: sanitizedDirectory,
+    });
 }
 
 function setOverlayHoverStyles(): void {
@@ -107,7 +139,17 @@ function removeOverlay(): void {
     if (state.highlightOverlay?.parentNode) {
         state.highlightOverlay.parentNode.removeChild(state.highlightOverlay);
     }
+
     state.highlightOverlay = null;
+}
+
+function removeControls(): void {
+    if (state.controlsContainer?.parentNode) {
+        state.controlsContainer.parentNode.removeChild(state.controlsContainer);
+    }
+
+    state.controlsContainer = null;
+    state.exportDirectoryInput = null;
 }
 
 function resetLockedState(): void {
@@ -199,11 +241,14 @@ function handleClick(event: MouseEvent): void {
 }
 
 function downloadMarkdown(markdown: string, filename: string): void {
-    browser.runtime.sendMessage({
+    const payload: DownloadMarkdownMessage = {
         action: 'download-markdown',
         markdown,
         filename,
-    });
+        directory: state.exportDirectory,
+    };
+
+    browser.runtime.sendMessage(payload);
 }
 
 function buildStyledButton(text: string, backgroundColor: string): HTMLButtonElement {
@@ -218,11 +263,7 @@ function buildStyledButton(text: string, backgroundColor: string): HTMLButtonEle
     return button;
 }
 
-function showControls(): void {
-    if (state.controlsContainer) {
-        return;
-    }
-
+function createControlsContainer(): HTMLDivElement {
     const controls = document.createElement('div');
     controls.style.position = 'fixed';
     controls.style.bottom = '20px';
@@ -234,60 +275,122 @@ function showControls(): void {
     controls.style.borderRadius = '8px';
     controls.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
     controls.style.display = 'flex';
+    controls.style.flexDirection = 'column';
     controls.style.gap = '10px';
     controls.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+    controls.style.minWidth = '320px';
+    controls.style.maxWidth = 'min(90vw, 720px)';
+
+    return controls;
+}
+
+function createDirectoryInput(): HTMLInputElement {
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = state.exportDirectory;
+    input.placeholder = 'Folder inside Downloads, e.g. notes/articles';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+    input.inputMode = 'text';
+    input.pattern = '^[^<>:\"|?*\\u0000-\\u001F]+(?:[/\\\\][^<>:\"|?*\\u0000-\\u001F]+)*$';
+    input.style.padding = '8px 10px';
+    input.style.color = '#1f2937';
+    input.style.backgroundColor = '#ffffff';
+    input.style.border = '1px solid #c9ced6';
+    input.style.borderRadius = '4px';
+    input.style.caretColor = '#1f2937';
+    input.style.minWidth = '280px';
+    input.style.outline = 'none';
+    input.addEventListener('focus', () => {
+        input.style.borderColor = '#0078D7';
+        input.style.boxShadow = '0 0 0 3px rgba(0, 120, 215, 0.18)';
+    });
+    input.addEventListener('blur', () => {
+        input.style.borderColor = '#c9ced6';
+        input.style.boxShadow = 'none';
+    });
+    input.addEventListener('input', () => {
+        void persistExportDirectory(input.value);
+    });
+
+    return input;
+}
+
+function exportFullPage(): void {
+    const pageTitle = document.title || 'page';
+    const clonedDocument = document.documentElement.cloneNode(true) as HTMLElement;
+    const removableNodes = clonedDocument.querySelectorAll('script, style');
+    removableNodes.forEach((node) => node.remove());
+
+    const markdown = htmlToMarkdown(clonedDocument.outerHTML);
+    downloadMarkdown(`# ${pageTitle}\n\n${markdown}`, generateFilename('FP'));
+    stopSelectionMode();
+}
+
+function exportSelectedElement(): void {
+    if (!state.lockedElement) {
+        return;
+    }
+
+    const markdown = htmlToMarkdown(state.lockedElement.outerHTML);
+    downloadMarkdown(markdown, generateFilename('SE'));
+    stopSelectionMode();
+}
+
+function showControls(): void {
+    if (state.controlsContainer) {
+        return;
+    }
+
+    const controls = createControlsContainer();
 
     const title = document.createElement('div');
     title.textContent = 'Save as Markdown';
     title.style.fontWeight = 'bold';
-    title.style.marginRight = '10px';
-    title.style.alignSelf = 'center';
+
+    const directoryLabel = document.createElement('label');
+    directoryLabel.textContent = 'Folder inside Firefox Downloads';
+    directoryLabel.style.fontSize = '13px';
+    directoryLabel.style.color = '#333';
+
+    const directoryInput = createDirectoryInput();
+    state.exportDirectoryInput = directoryInput;
+    directoryInput.setAttribute('aria-label', 'Folder inside Firefox Downloads');
+
+    const directoryHint = document.createElement('div');
+    directoryHint.textContent = 'Saved between sessions. Only folder segments are kept.';
+    directoryHint.style.fontSize = '12px';
+    directoryHint.style.color = '#777';
+
+    const actionsRow = document.createElement('div');
+    actionsRow.style.display = 'flex';
+    actionsRow.style.gap = '10px';
+    actionsRow.style.alignItems = 'center';
+    actionsRow.style.flexWrap = 'wrap';
 
     const fullPageButton = buildStyledButton('The whole page', '#0078D7');
-    fullPageButton.addEventListener('click', () => {
-        const pageTitle = document.title || 'page';
-        const clonedDocument = document.documentElement.cloneNode(true) as HTMLElement;
-        const removableNodes = clonedDocument.querySelectorAll('script, style');
-        removableNodes.forEach((node) => node.remove());
-
-        const markdown = htmlToMarkdown(clonedDocument.outerHTML);
-        downloadMarkdown(`# ${pageTitle}\n\n${markdown}`, generateFilename());
-        stopSelectionMode();
-    });
+    fullPageButton.addEventListener('click', exportFullPage);
 
     const selectedElementButton = buildStyledButton('Selected item', '#28a745');
-    selectedElementButton.addEventListener('click', () => {
-        if (!state.lockedElement) {
-            return;
-        }
-
-        const markdown = htmlToMarkdown(state.lockedElement.outerHTML);
-        downloadMarkdown(markdown, generateFilename());
-        stopSelectionMode();
-    });
+    selectedElementButton.addEventListener('click', exportSelectedElement);
 
     const hint = document.createElement('div');
     hint.textContent = '(Esc to cancel)';
     hint.style.fontSize = '12px';
     hint.style.color = '#777';
-    hint.style.alignSelf = 'center';
-    hint.style.marginLeft = '10px';
+
+    actionsRow.appendChild(fullPageButton);
+    actionsRow.appendChild(selectedElementButton);
+    actionsRow.appendChild(hint);
 
     controls.appendChild(title);
-    controls.appendChild(fullPageButton);
-    controls.appendChild(selectedElementButton);
-    controls.appendChild(hint);
+    controls.appendChild(directoryLabel);
+    controls.appendChild(directoryInput);
+    controls.appendChild(directoryHint);
+    controls.appendChild(actionsRow);
 
     state.controlsContainer = controls;
     document.body.appendChild(controls);
-}
-
-function removeControls(): void {
-    if (state.controlsContainer?.parentNode) {
-        state.controlsContainer.parentNode.removeChild(state.controlsContainer);
-    }
-
-    state.controlsContainer = null;
 }
 
 export function startSelectionMode(): void {
@@ -300,6 +403,7 @@ export function startSelectionMode(): void {
     state.hoveredElement = null;
 
     createOverlay();
+    void loadSavedExportDirectory();
 
     document.addEventListener('mousemove', handleMouseMove);
     document.addEventListener('click', handleClick, true);

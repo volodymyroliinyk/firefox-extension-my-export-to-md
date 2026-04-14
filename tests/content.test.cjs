@@ -13,6 +13,14 @@ class MockElement {
         this.children = [];
         this.parentNode = null;
         this.textContent = '';
+        this.value = '';
+        this.placeholder = '';
+        this.pattern = '';
+        this.type = '';
+        this.spellcheck = false;
+        this.autocomplete = '';
+        this.inputMode = '';
+        this.attributes = {};
         this.eventListeners = new Map();
         this.outerHTML = `<${tagName}></${tagName}>`;
         this._rect = {top: 0, left: 0, width: 0, height: 0};
@@ -65,6 +73,10 @@ class MockElement {
         for (const listener of listeners) {
             listener(event);
         }
+    }
+
+    setAttribute(name, value) {
+        this.attributes[name] = value;
     }
 
     querySelectorAll() {
@@ -140,6 +152,9 @@ class MockDocument {
 function setupContentEnv() {
     const sentMessages = [];
     const messageListeners = [];
+    const storageState = {
+        exportDirectory: 'saved/folder'
+    };
 
     const document = new MockDocument();
     const window = {
@@ -156,6 +171,19 @@ function setupContentEnv() {
             onMessage: {
                 addListener(listener) {
                     messageListeners.push(listener);
+                }
+            }
+        },
+        storage: {
+            local: {
+                async get(key) {
+                    if (typeof key === 'string') {
+                        return {[key]: storageState[key]};
+                    }
+                    return {...storageState};
+                },
+                async set(values) {
+                    Object.assign(storageState, values);
                 }
             }
         }
@@ -179,7 +207,7 @@ function setupContentEnv() {
     delete require.cache[CONTENT_PATH];
     const content = require(CONTENT_PATH);
 
-    return {content, document, sentMessages, messageListeners};
+    return {content, document, sentMessages, messageListeners, storageState};
 }
 
 function findOverlay(document) {
@@ -188,6 +216,10 @@ function findOverlay(document) {
 
 function findControls(document) {
     return document.body.children.find((el) => el.style.zIndex === '1000000');
+}
+
+function findActionsRow(controls) {
+    return controls.children[4];
 }
 
 function createMouseEvent(target) {
@@ -200,6 +232,23 @@ function createMouseEvent(target) {
         stopPropagation() {
         }
     };
+}
+
+async function flush() {
+    await new Promise((resolve) => setImmediate(resolve));
+}
+
+async function selectTargetAndOpenControls(env, target) {
+    env.document.setElementFromPoint(target);
+    env.content.startSelectionMode();
+    await flush();
+
+    env.document.dispatch('mousemove', {clientX: 1, clientY: 1});
+    env.document.dispatch('click', createMouseEvent(target));
+
+    const controls = findControls(env.document);
+    assert.ok(controls);
+    return controls;
 }
 
 test('startSelectionMode creates overlay and updates position on hover', () => {
@@ -221,35 +270,32 @@ test('startSelectionMode creates overlay and updates position on hover', () => {
     assert.equal(overlay.style.height, '40px');
 });
 
-test('selected element export sends markdown message', () => {
+test('selected element export sends markdown message with saved directory and SE filename', async () => {
     const env = setupContentEnv();
     const target = env.document.createElement('section');
     target.outerHTML = '<section><p>Hello</p></section>';
     target.setBoundingClientRect({top: 1, left: 2, width: 3, height: 4});
-    env.document.setElementFromPoint(target);
 
-    env.content.startSelectionMode();
-    env.document.dispatch('mousemove', {clientX: 1, clientY: 1});
-    env.document.dispatch('click', createMouseEvent(target));
+    const controls = await selectTargetAndOpenControls(env, target);
+    const directoryInput = controls.children[2];
+    assert.equal(directoryInput.value, 'saved/folder');
 
-    const controls = findControls(env.document);
-    assert.ok(controls);
-
-    const elementBtn = controls.children[2];
+    const actionsRow = findActionsRow(controls);
+    const elementBtn = actionsRow.children[1];
     elementBtn.dispatchEvent('click');
 
     assert.equal(env.sentMessages.length, 1);
     assert.equal(env.sentMessages[0].action, 'download-markdown');
     assert.equal(env.sentMessages[0].markdown, 'MD:<section><p>Hello</p></section>');
-    assert.match(env.sentMessages[0].filename, /^example_com_path_q_1_\d{8}_\d{6}\.md$/);
+    assert.equal(env.sentMessages[0].directory, 'saved/folder');
+    assert.match(env.sentMessages[0].filename, /^example_com_path_q_1_SE_\d{8}_\d{6}\.md$/);
 });
 
-test('full page export prepends title and converts cloned html', () => {
+test('full page export prepends title and converts cloned html with FP filename', async () => {
     const env = setupContentEnv();
     const target = env.document.createElement('main');
     target.outerHTML = '<main>Data</main>';
     target.setBoundingClientRect({top: 1, left: 2, width: 3, height: 4});
-    env.document.setElementFromPoint(target);
 
     const removableA = {
         removeCalled: 0, remove() {
@@ -270,18 +316,33 @@ test('full page export prepends title and converts cloned html', () => {
         }
     };
 
-    env.content.startSelectionMode();
-    env.document.dispatch('mousemove', {clientX: 1, clientY: 1});
-    env.document.dispatch('click', createMouseEvent(target));
-
-    const controls = findControls(env.document);
-    const fullPageBtn = controls.children[1];
+    const controls = await selectTargetAndOpenControls(env, target);
+    const actionsRow = findActionsRow(controls);
+    const fullPageBtn = actionsRow.children[0];
     fullPageBtn.dispatchEvent('click');
 
     assert.equal(env.sentMessages.length, 1);
     assert.match(env.sentMessages[0].markdown, /^# Demo Title\n\nMD:/);
+    assert.equal(env.sentMessages[0].directory, 'saved/folder');
+    assert.match(env.sentMessages[0].filename, /^example_com_path_q_1_FP_\d{8}_\d{6}\.md$/);
     assert.equal(removableA.removeCalled, 1);
     assert.equal(removableB.removeCalled, 1);
+});
+
+test('directory input sanitizes and persists folder path', async () => {
+    const env = setupContentEnv();
+    const target = env.document.createElement('div');
+    target.setBoundingClientRect({top: 1, left: 2, width: 3, height: 4});
+
+    const controls = await selectTargetAndOpenControls(env, target);
+    const directoryInput = controls.children[2];
+
+    directoryInput.value = '../unsafe\\\\docs//2026:*';
+    directoryInput.dispatchEvent('input');
+    await flush();
+
+    assert.equal(directoryInput.value, 'unsafe/docs/2026');
+    assert.equal(env.storageState.exportDirectory, 'unsafe/docs/2026');
 });
 
 test('escape unlocks first, then fully stops selection mode', () => {
