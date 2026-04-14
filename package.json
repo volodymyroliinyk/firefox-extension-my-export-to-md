@@ -1,6 +1,6 @@
 {
   "name": "my-export-to-md",
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "Firefox extension to export full page or selected elements to Markdown file",
   "author": "Volodymyr Oliinyk <volodymyr.oliinyk.name@gmail.com>",
   "license": "MIT",
@@ -21,6 +21,7 @@
     "test": "./sh/test.sh",
     "test:smoke": "./sh/smoke-firefox.sh",
     "build": "./sh/build.sh",
+    "build:dev": "./sh/build-dev.sh",
     "dev": "./sh/dev.sh",
     "release": "./sh/release.sh"
   },
