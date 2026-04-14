@@ -10,9 +10,16 @@
 - update [directory-tree.txt](../directory-tree.txt)
 - `npm audit fix --force;`
 - increase version [manifest.json](../manifest.json) and [package.json](../package.json)
-- build (dev) release just for private manual testing:
-  `(export AMO_JWT_ISSUER=...;export AMO_JWT_SECRET=...;);npm run build:dev;` (https://addons.mozilla.org/en-US/developers/addon/854438fecb2d45c1b7e4/versions)
-- install to firefox browser (https://addons.mozilla.org/en-US/developers/addon/854438fecb2d45c1b7e4/versions)
+- build (dev) release just for private manual testing,
+  see https://addons.mozilla.org/en-US/developers/addon/854438fecb2d45c1b7e4/versions:
+
+```
+export AMO_JWT_ISSUER=...;
+export AMO_JWT_SECRET=...;
+npm run build:dev;
+```
+
+- install to Firefox browser (https://addons.mozilla.org/en-US/developers/addon/854438fecb2d45c1b7e4/versions)
 - manual testing:
     - full page
     - selected element
@@ -27,13 +34,14 @@
       ```
       git checkout main;
       git pull origin main;
-      git tag -a 1.0.10 -m "Release 1.0.10";
-      git push origin 1.0.10;
+      git tag -a 1.0.13 -m "Release 1.0.13";
+      git push origin 1.0.13;
       ```
-- build production release
-- upload to firefox dev portal (https://addons.mozilla.org/en-US/developers/addon/myexporttomd/versions)
-- waiting for an approval (https://addons.mozilla.org/en-US/developers/addon/myexporttomd/versions)
-- install published production extension
+- build and release production release, see (https://addons.mozilla.org/en-US/developers/addon/myexporttomd/versions):
+  - `npm run build;`
+  - `npm run release;`
+- waiting for an approval, see (https://addons.mozilla.org/en-US/developers/addon/myexporttomd/versions)
+- install production extension to Firefox browser
 - manual testing for officially released extension
 - maintenance/updates/fixes if it is necessary
 
