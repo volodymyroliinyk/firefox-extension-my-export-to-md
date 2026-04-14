@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on Keep a Changelog,
 and this project follows Semantic Versioning.
 
+## [1.0.13] - 2026-04-14
+
+### Changed
+
+- Bumped the extension version to `1.0.13`.
+- Updated development tooling dependencies, including `@types/firefox-webext-browser`, `esbuild`, and `web-ext`.
+- Refined the developer workflow documentation to reflect the current dev-build, tagging, and production release steps.
+
+### Fixed
+
+- Corrected the Firefox WebExtension type dependency to a published npm version.
+- Refreshed the lockfile through dependency maintenance and audit-driven updates.
+
 ## [1.0.11] - 2026-04-14
 
 ### Added
