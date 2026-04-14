@@ -7,6 +7,7 @@ mkdir -p .test-build
 echo "Running TypeScript type check..."
 ./node_modules/.bin/tsc --noEmit
 
+./node_modules/.bin/esbuild src/export-config.ts --platform=node --format=cjs --outfile=.test-build/export-config.js >/dev/null
 ./node_modules/.bin/esbuild src/utils.ts --platform=node --format=cjs --outfile=.test-build/utils.js >/dev/null
 ./node_modules/.bin/esbuild src/content.ts --platform=node --format=cjs --outfile=.test-build/content.js >/dev/null
 ./node_modules/.bin/esbuild src/background.ts --platform=node --format=cjs --outfile=.test-build/background.js >/dev/null

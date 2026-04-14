@@ -128,14 +128,15 @@ test('download-markdown revokes object URL after successful download', async () 
     env.messageListeners[0]({
         action: 'download-markdown',
         markdown: '# Hi',
-        filename: 'hi.md'
+        filename: 'hi.md',
+        directory: 'notes/posts'
     });
 
     await flush();
 
     assert.equal(env.calls.downloads.length, 1);
     assert.equal(env.calls.downloads[0].url, 'blob:ok');
-    assert.equal(env.calls.downloads[0].filename, 'hi.md');
+    assert.equal(env.calls.downloads[0].filename, 'notes/posts/hi.md');
     assert.equal(env.calls.downloads[0].saveAs, true);
     assert.deepEqual(revoked, ['blob:ok']);
 });
@@ -144,7 +145,8 @@ test('download-markdown revokes object URL when download fails', async () => {
     const env = createBackgroundEnv();
     const revoked = [];
 
-    env.browser.downloads.download = async () => {
+    env.browser.downloads.download = async (payload) => {
+        env.calls.downloads.push(payload);
         throw new Error('failed');
     };
 
@@ -166,12 +168,14 @@ test('download-markdown revokes object URL when download fails', async () => {
         env.messageListeners[0]({
             action: 'download-markdown',
             markdown: '# Fail',
-            filename: 'fail.md'
+            filename: 'fail.md',
+            directory: '../unsafe//folder'
         });
         await flush();
     } finally {
         console.error = originalError;
     }
 
+    assert.equal(env.calls.downloads[0].filename, 'unsafe/folder/fail.md');
     assert.deepEqual(revoked, ['blob:err']);
 });

@@ -1,3 +1,5 @@
+import {buildDownloadPath} from './export-config';
+
 type StartSelectionMessage = {
     action: 'start-selection';
 };
@@ -6,6 +8,7 @@ type DownloadMarkdownMessage = {
     action: 'download-markdown';
     markdown: string;
     filename: string;
+    directory: string;
 };
 
 type RuntimeMessage = StartSelectionMessage | DownloadMarkdownMessage;
@@ -22,6 +25,7 @@ function isDownloadMarkdownMessage(message: unknown): message is DownloadMarkdow
         candidate.action === 'download-markdown'
         && typeof candidate.markdown === 'string'
         && typeof candidate.filename === 'string'
+        && typeof candidate.directory === 'string'
     );
 }
 
@@ -47,7 +51,7 @@ async function handleDownloadMarkdown(message: DownloadMarkdownMessage): Promise
     try {
         await browser.downloads.download({
             url: blobUrl,
-            filename: message.filename,
+            filename: buildDownloadPath(message.directory, message.filename),
             saveAs: true,
         });
     } catch (error) {
